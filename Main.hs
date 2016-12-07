@@ -22,6 +22,7 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
 
 import Text.Read
+import Data.Ix
 
 {-- UTILS --}
 
@@ -41,12 +42,13 @@ parseEpochTime :: TL.Text -> Maybe Integer
 parseEpochTime string = readMaybe . TL.unpack $ string
 
 filterTimeRange :: (Maybe POSIXTime) -> [Integer] -> [Integer]
-filterTimeRange (Just posixTime) pings = filterDay (truncate . toRational $ posixTime) pings 
-filterTimeRange _ _ = []
+filterTimeRange (Just posixTime) pings = pings
+                                          & Prelude.filter predicate
+  where
+    posixTime' = (truncate . toRational $ posixTime) :: Integer
+    predicate = (inRange (posixTime', posixTime' + 86400))
 
-filterDay :: Integer -> [Integer] -> [Integer]
-filterDay lowerBound = Prelude.filter (\x -> lowerBound <= x) 
-                      . Prelude.filter (\x -> x < lowerBound + 86400) 
+filterTimeRange _ _ = []
 
 {-- DB --}
 
@@ -86,9 +88,7 @@ main = do
       date <- param "date"
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-
       let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
-      liftIO . print $ devicePings'
 
       json $ (filterTimeRange $ (parseISO8601 date)) $ devicePings'
 
