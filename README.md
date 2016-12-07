@@ -11,3 +11,4 @@ My solution to [TandaHQ/work-samples/pings](https://github.com/TandaHQ/work-samp
 
 
 `docker run --name PingskellDB -d redis redis-server --appendonly yes -p 6379:6379`
+`docker run -d -p 6379:6379 redis`
