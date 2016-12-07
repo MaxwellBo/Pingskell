@@ -42,12 +42,16 @@ main = do
 
       liftIO $ (runRedis conn (postPing deviceID epochTime))
 
-      text $ "RESPONSE"
+      text $ ""
 
     S.get "/:deviceID/:date" $ do
       deviceID <- param "deviceID"
       date <- param "date"
       text $ mconcat [ deviceID, " ", date ]
 
-    -- S.get "/devices" $ do
+    S.get "/devices" $ do
+      devices <- liftIO $ (runRedis conn getDevices)
+      let (Right devices') = devices
+      json $ (fmap (TLE.decodeUtf8 . BL.fromStrict) devices')
+
 
