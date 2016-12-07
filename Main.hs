@@ -6,6 +6,7 @@ import Database.Redis as R
 
 import Control.Monad.Trans
 import Control.Applicative
+import Data.Function ((&))
 
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -21,13 +22,6 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
 
 
-parseISO8601 :: T.Text -> Maybe POSIXTime
-parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
-  where
-    utcTime = parseTimeM False defaultTimeLocale formatString (T.unpack string)
-    formatString = (iso8601DateFormat Nothing)
-
-
 {-- UTILS --}
 
 byteStringToText :: ByteString -> TL.Text
@@ -36,6 +30,19 @@ byteStringToText = TLE.decodeUtf8 . BL.fromStrict
 textToByteString :: TL.Text -> ByteString
 textToByteString = BL.toStrict . TLE.encodeUtf8
 
+parseISO8601 :: TL.Text -> Maybe POSIXTime
+parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
+  where
+    utcTime = parseTimeM False defaultTimeLocale formatString (TL.unpack string)
+    formatString = (iso8601DateFormat Nothing)
+
+
+filterTimeRange :: Maybe POSIXTime -> [Integer] -> [Integer]
+filterTimeRange (Just posixTime) pings = pings 
+                                          & Prelude.filter (\x -> time <= x)
+                                          & Prelude.filter (\x -> x < time)
+  where
+    time = truncate . toRational $ posixTime
 
 {-- DB --}
 
@@ -72,10 +79,14 @@ main = do
 
     S.get "/:deviceID/:date" $ do
       deviceID <- param "deviceID"
-      (date :: TL.Text) <- param "date"
+      date <- param "date"
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-      json (fmap byteStringToText devicePings)
+      liftIO . print $ devicePings
+
+      let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
+
+      json $ (filterTimeRange $ (parseISO8601 date)) $ devicePings'
 
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
