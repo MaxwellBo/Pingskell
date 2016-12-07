@@ -5,6 +5,7 @@ import Web.Scotty as S
 import Database.Redis as R
 
 import Control.Monad.Trans
+import Control.Applicative
 
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -14,6 +15,17 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
 import Data.ByteString.Char8 as BE
+
+import Data.Time.Format
+import Data.Time.Clock
+import Data.Time.Clock.POSIX
+
+
+parseISO8601 :: T.Text -> Maybe POSIXTime
+parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
+  where
+    utcTime = parseTimeM False defaultTimeLocale formatString (T.unpack string)
+    formatString = (iso8601DateFormat Nothing)
 
 
 {-- UTILS --}
