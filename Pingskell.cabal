@@ -20,6 +20,9 @@ executable Pingskell
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
-    , scotty
+                     , scotty
+                     , transformers
+                     , mtl
+                     , text
   -- hs-source-dirs:      
   default-language:    Haskell2010

@@ -4,6 +4,6 @@ My solution to [TandaHQ/work-samples/pings](https://github.com/TandaHQ/work-samp
 
 
 
-
+`cabal sandbox init`
+`cabal install`
 `cabal run`
-
