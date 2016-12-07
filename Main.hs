@@ -2,40 +2,52 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 import Web.Scotty as S 
-import Control.Monad.Trans
-import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as TLE
-
 import Database.Redis as R
 
-import Data.ByteString.Char8 as BE
+import Control.Monad.Trans
+
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
+
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
+
+import Data.ByteString.Char8 as BE
 
 session :: Redis (Either Reply (Maybe ByteString))
 session = do
   R.set "hello" "haskell"
   R.get "hello"
 
-postToDB :: ByteString -> ByteString -> Redis (Either Reply Integer)
-postToDB deviceID epochTime = do
-  R.append deviceID epochTime
+postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
+postPing deviceID epochTime = do
+  let (deviceID' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ deviceID 
+  let (epochTime' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ epochTime
+  R.append deviceID' epochTime'
 
+getDevices :: Redis (Either Reply ([ByteString]))
+getDevices = do
+  R.keys "*"
 
 main :: IO ()
 main = do 
-  conn <- connect defaultConnectInfo { connectHost = "127.0.0.1" }
-  res <- runRedis conn session
-  print res
+  conn <- connect defaultConnectInfo
 
   scotty 3000 $ do
+
     S.post "/:device_id/:epoch_time" $ do
       deviceID <- param "device_id"
       epochTime <- param "epoch_time"
 
-      let (deviceID' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ deviceID 
-      let (epochTime' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ epochTime
+      liftIO $ (runRedis conn (postPing deviceID epochTime))
 
-      -- liftIO $ (runRedis conn (postToDB deviceID' epochTime'))
+      text $ "RESPONSE"
 
-      text $ mconcat [ deviceID, " ", epochTime ]
+    S.get "/:deviceID/:date" $ do
+      deviceID <- param "deviceID"
+      date <- param "date"
+      text $ mconcat [ deviceID, " ", date ]
+
+    -- S.get "/devices" $ do
+
