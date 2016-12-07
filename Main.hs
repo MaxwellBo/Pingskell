@@ -22,9 +22,13 @@ session = do
 
 postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
-  let (deviceID' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ deviceID 
-  let (epochTime' :: ByteString) = BL.toStrict $ TLE.encodeUtf8 $ epochTime
-  R.append deviceID' epochTime'
+  R.append (textToByteString deviceID) (textToByteString epochTime)
+
+byteStringToText :: ByteString -> TL.Text
+byteStringToText = TLE.decodeUtf8 . BL.fromStrict
+
+textToByteString :: TL.Text -> ByteString
+textToByteString = BL.toStrict . TLE.encodeUtf8
 
 getDevices :: Redis (Either Reply ([ByteString]))
 getDevices = do
@@ -52,6 +56,6 @@ main = do
     S.get "/devices" $ do
       devices <- liftIO $ (runRedis conn getDevices)
       let (Right devices') = devices
-      json $ (fmap (TLE.decodeUtf8 . BL.fromStrict) devices')
+      json $ (fmap byteStringToText devices')
 
 
