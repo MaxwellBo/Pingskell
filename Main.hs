@@ -29,7 +29,7 @@ import qualified Data.Map.Lazy as Map
 
 type EpochTime = Integer
 
-{-- UTILS --}
+{-- CONVERSIONS --}
 
 byteStringToText :: BC.ByteString -> TL.Text
 byteStringToText = TLE.decodeUtf8 . BL.fromStrict
@@ -40,6 +40,8 @@ textToByteString = BL.toStrict . TLE.encodeUtf8
 byteStringToString :: BC.ByteString -> String
 byteStringToString = TL.unpack . byteStringToText
 
+{-- TIME --}
+
 parseISO8601 :: TL.Text -> Maybe EpochTime
 parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
   where
@@ -48,7 +50,7 @@ parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
     posixToEpoch = truncate . toRational
 
 parseEpochTime :: TL.Text -> Maybe EpochTime
-parseEpochTime string = readMaybe . TL.unpack $ string
+parseEpochTime = readMaybe . TL.unpack
 
 parseTime' :: TL.Text -> Maybe EpochTime
 -- Pass the TL.Text argument to both functions, and take the first Just argument
@@ -56,11 +58,6 @@ parseTime' :: TL.Text -> Maybe EpochTime
 parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
 {-- DB --}
-
-session :: Redis (Either Reply (Maybe BC.ByteString))
-session = do
-  R.set "hello" "haskell"
-  R.get "hello"
 
 postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
@@ -92,6 +89,8 @@ takeRangeSlice (Just from) (Just to) (Just pings) = Prelude.filter predicate pin
   where
     predicate = inRange (from, to - 1) 
 takeRangeSlice _ _ _ = []
+
+{-- ENTRY POINT --}
 
 main :: IO ()
 main = do 
@@ -127,13 +126,13 @@ main = do
       json $ takeRangeSlice (parseTime' from) (parseTime' to) pings
 
     S.get "/random_prefix/:date" $ do
-      (date :: TL.Text) <- param "date"
+      date <- param "date"
 
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
       let pairs' = [ (device, takeDaySlice (parseISO8601 date) (Just pings)) 
                    | (device, pings) <- pairs
-                   , takeDaySlice (parseISO8601 date) (Just pings) /= []
+                   -- , takeDaySlice (parseISO8601 date) (Just pings) /= []
                    ]
 
       json $ Map.fromList pairs 
