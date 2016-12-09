@@ -23,6 +23,7 @@ import Data.Time.Clock.POSIX
 
 import Text.Read
 import Data.Ix
+import Data.Either
 
 type EpochTime = Integer
 
@@ -73,8 +74,15 @@ getDevicePings deviceID = do
   pings <- R.lrange (textToByteString deviceID) 0 (-1)
   return $ fmap (fmap (read . byteStringToString)) pings
 
--- getDevicePingPairs :: Redis (Either Reply [(TL.Text, [Inte])])
 
+getValue :: ByteString -> Redis (Either Reply [ByteString])
+getValue key = R.lrange key 0 (-1)
+
+getKeyValuePairs :: Redis (Either Reply [(ByteString, [ByteString])])
+getKeyValuePairs = do
+  (Right keys) <- (R.keys "*")
+  values <- (mapM getValue keys)
+  return $ return $ Prelude.zip keys (rights values)
 
 {-- BUSINESS LOGIC --}
 
