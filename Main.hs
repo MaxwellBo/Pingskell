@@ -69,11 +69,6 @@ postPing deviceID epochTime = do
 getDevices :: Redis (Either Reply ([TL.Text]))
 getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
 
-getDevicePings :: TL.Text -> Redis (Either Reply [EpochTime])
-getDevicePings deviceID = do 
-  pings <- R.lrange (textToByteString deviceID) 0 (-1)
-  return $ fmap (fmap (read . byteStringToString)) pings
-
 getValue :: ByteString -> Redis (Either Reply [ByteString])
 getValue key = R.lrange key 0 (-1)
 
@@ -87,13 +82,13 @@ getKeyValuePairs = do
 
 {-- BUSINESS LOGIC --}
 
-takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
+takeDaySlice :: Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
 takeDaySlice from = takeRangeSlice from to
   where
     to = (+86400) <$> from -- a day later
 
-takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
-takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
+takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
+takeRangeSlice (Just from) (Just to) (Just pings) = Prelude.filter predicate pings
   where
     predicate = inRange (from, to) 
 takeRangeSlice _ _ _ = []
@@ -116,27 +111,24 @@ main = do
       deviceID <- param "deviceID"
       date <- param "date"
 
-      (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
+      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+      let devicePings = Map.lookup deviceID (Map.fromList pairs)
 
-      json $ (takeDaySlice (parseISO8601 date) devicePings)
+      json $ takeDaySlice (parseISO8601 date) devicePings
 
     S.get "/:deviceID/:from/:to" $ do
       deviceID <- param "deviceID"
       from <- param "from"
       to <- param "to"
 
-      liftIO $ print "meme"
-      (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
+      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+      let devicePings = Map.lookup deviceID (Map.fromList pairs)
 
       json $ takeRangeSlice (parseTime' from) (parseTime' to) devicePings
 
     S.get "/random_prefix" $ do
       -- (date :: TL.Text) <- param "date"
-
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-
-      liftIO $ print pairs 
-
       json $ Map.fromList pairs
 
     -- S.get "/all/:from/:to" $ do
