@@ -26,6 +26,8 @@ import Data.Ix
 
 type EpochTime = Integer
 
+-- import qualified Data.Map.Lazy as Map
+
 {-- UTILS --}
 
 byteStringToText :: ByteString -> TL.Text
@@ -49,8 +51,8 @@ parseTime' :: TL.Text -> Maybe EpochTime
 -- if possible
 parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
-parseDevicePings :: [ByteString] -> [EpochTime]
-parseDevicePings = fmap (read . TL.unpack . byteStringToText)
+parseDevicePings :: [TL.Text] -> [EpochTime]
+parseDevicePings = fmap (read . TL.unpack)
 
 
 {-- DB --}
@@ -60,15 +62,19 @@ session = do
   R.set "hello" "haskell"
   R.get "hello"
 
-postPing :: TL.Text -> TL.Text -> Redis (Either Reply EpochTime)
+postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
-getDevices :: Redis (Either Reply ([ByteString]))
-getDevices = R.keys "*"
+getDevices :: Redis (Either Reply ([TL.Text]))
+getDevices = do
+  devices <- R.keys "*"
+  return $ fmap (fmap byteStringToText) devices
 
-getDevicePings :: TL.Text -> Redis (Either Reply [ByteString])
-getDevicePings deviceID = R.lrange (textToByteString deviceID) 0 (-1)
+getDevicePings :: TL.Text -> Redis (Either Reply [TL.Text])
+getDevicePings deviceID = do 
+  pings <- R.lrange (textToByteString deviceID) 0 (-1)
+  return $ fmap (fmap byteStringToText) pings
 
 
 {-- BUSINESS LOGIC --}
@@ -115,9 +121,16 @@ main = do
 
       json $ takeRangeSlice (parseTime' from) (parseTime' to) (parseDevicePings devicePings)
 
+    -- S.get "/all/:date" $ do
+    --   date <- param "date"
+
+    -- S.get "/all/:from/:to" $ do
+    --   from <- param "from"
+    --   to <- param "to"
+
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
-      json $ (fmap byteStringToText devices)
+      json $ devices
 
     S.post "/clear_data" $ do
       liftIO $ runRedis conn R.flushall
