@@ -27,5 +27,6 @@ executable Pingskell
                      , hedis
                      , bytestring
                      , time
+                     , containers
   -- hs-source-dirs:      
   default-language:    Haskell2010

@@ -25,9 +25,9 @@ import Text.Read
 import Data.Ix
 import Data.Either
 
-type EpochTime = Integer
+import qualified Data.Map.Lazy as Map
 
--- import qualified Data.Map.Lazy as Map
+type EpochTime = Integer
 
 {-- UTILS --}
 
@@ -74,15 +74,16 @@ getDevicePings deviceID = do
   pings <- R.lrange (textToByteString deviceID) 0 (-1)
   return $ fmap (fmap (read . byteStringToString)) pings
 
-
 getValue :: ByteString -> Redis (Either Reply [ByteString])
 getValue key = R.lrange key 0 (-1)
 
-getKeyValuePairs :: Redis (Either Reply [(ByteString, [ByteString])])
+getKeyValuePairs :: Redis (Either Reply [(TL.Text, [EpochTime])])
 getKeyValuePairs = do
   (Right keys) <- (R.keys "*")
   values <- (mapM getValue keys)
-  return $ return $ Prelude.zip keys (rights values)
+  let devices = fmap byteStringToText keys
+  let pings = (fmap (read . byteStringToString)) <$> rights values
+  return $ return $ Prelude.zip devices pings
 
 {-- BUSINESS LOGIC --}
 
@@ -124,12 +125,19 @@ main = do
       from <- param "from"
       to <- param "to"
 
+      liftIO $ print "meme"
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
 
       json $ takeRangeSlice (parseTime' from) (parseTime' to) devicePings
 
-    -- S.get "/all/:date" $ do
-    --   date <- param "date"
+    S.get "/random_prefix" $ do
+      -- (date :: TL.Text) <- param "date"
+
+      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+
+      liftIO $ print pairs 
+
+      json $ Map.fromList pairs
 
     -- S.get "/all/:from/:to" $ do
     --   from <- param "from"
