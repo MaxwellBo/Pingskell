@@ -49,15 +49,9 @@ parseTime' :: TL.Text -> Maybe EpochTime
 -- if possible
 parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
-takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
-takeDaySlice (Just epochTime) pings = Prelude.filter predicate pings
-  where
-    predicate = (inRange (epochTime, epochTime + 86400))
+parseDevicePings :: [ByteString] -> [EpochTime]
+parseDevicePings = fmap (read . TL.unpack . byteStringToText)
 
-takeDaySlice _ _ = []
-
--- takeRangeSlice :: TL.Text -> TL.Text -> [EpochTime] -> [EpochTime]
--- takeRangeSlice from to pings =  
 
 {-- DB --}
 
@@ -75,6 +69,19 @@ getDevices = R.keys "*"
 
 getDevicePings :: TL.Text -> Redis (Either Reply [ByteString])
 getDevicePings deviceID = R.lrange (textToByteString deviceID) 0 (-1)
+
+
+{-- BUSINESS LOGIC --}
+
+takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
+takeDaySlice (Just epochTime) pings = Prelude.filter predicate pings
+  where
+    predicate = (inRange (epochTime, epochTime + 86400))
+
+takeDaySlice _ _ = []
+
+-- takeRangeSlice :: TL.Text -> TL.Text -> [EpochTime] -> [EpochTime]
+-- takeRangeSlice from to pings =  
 
 main :: IO ()
 main = do 
@@ -95,9 +102,8 @@ main = do
       date <- param "date"
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-      let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
-      json $ (takeDaySlice (parseISO8601 date) devicePings')
+      json $ (takeDaySlice (parseISO8601 date) (parseDevicePings devicePings))
 
     -- S.get "/:deviceID/:from/:to" $ do
     --   deviceID <- param "deviceID"
@@ -105,9 +111,8 @@ main = do
     --   to <- param "to"
 
     --   (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-    --   let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
-    --   json $ (takeRangeSlice from to) $ devicePings'
+    --   json $ (takeRangeSlice from to) $ (parseDevicePings devicePings)
 
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
