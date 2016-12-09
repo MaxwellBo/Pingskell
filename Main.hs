@@ -36,6 +36,9 @@ byteStringToText = TLE.decodeUtf8 . BL.fromStrict
 textToByteString :: TL.Text -> ByteString
 textToByteString = BL.toStrict . TLE.encodeUtf8
 
+byteStringToString :: ByteString -> String
+byteStringToString = TL.unpack . byteStringToText
+
 parseISO8601 :: TL.Text -> Maybe EpochTime
 parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
   where
@@ -68,7 +71,7 @@ getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
 getDevicePings :: TL.Text -> Redis (Either Reply [EpochTime])
 getDevicePings deviceID = do 
   pings <- R.lrange (textToByteString deviceID) 0 (-1)
-  return $ fmap (fmap (read . TL.unpack . byteStringToText)) pings
+  return $ fmap (fmap (read . byteStringToString)) pings
 
 -- getDevicePingPairs :: Redis (Either Reply [(TL.Text, [Inte])])
 
