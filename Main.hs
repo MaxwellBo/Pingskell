@@ -67,9 +67,7 @@ postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
 getDevices :: Redis (Either Reply ([TL.Text]))
-getDevices = do
-  devices <- R.keys "*"
-  return $ fmap (fmap byteStringToText) devices
+getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
 
 getDevicePings :: TL.Text -> Redis (Either Reply [TL.Text])
 getDevicePings deviceID = do 
