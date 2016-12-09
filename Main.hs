@@ -35,7 +35,7 @@ byteStringToText :: BC.ByteString -> TL.Text
 byteStringToText = TLE.decodeUtf8 . BL.fromStrict
 
 textToByteString :: TL.Text -> BC.ByteString
-textToByteString = BL.toStrict . TL.Encoding.encodeUtf8
+textToByteString = BL.toStrict . TLE.encodeUtf8
 
 byteStringToString :: BC.ByteString -> String
 byteStringToString = TL.unpack . byteStringToText
@@ -90,7 +90,7 @@ takeDaySlice from = takeRangeSlice from to
 takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
 takeRangeSlice (Just from) (Just to) (Just pings) = Prelude.filter predicate pings
   where
-    predicate = inRange (from, to) 
+    predicate = inRange (from, to - 1) 
 takeRangeSlice _ _ _ = []
 
 main :: IO ()
@@ -112,9 +112,9 @@ main = do
       date <- param "date"
 
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-      let devicePings = Map.lookup deviceID (Map.fromList pairs)
+      let pings = Map.lookup deviceID (Map.fromList pairs)
 
-      json $ takeDaySlice (parseISO8601 date) devicePings
+      json $ takeDaySlice (parseISO8601 date) pings
 
     S.get "/:deviceID/:from/:to" $ do
       deviceID <- param "deviceID"
@@ -122,14 +122,21 @@ main = do
       to <- param "to"
 
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-      let devicePings = Map.lookup deviceID (Map.fromList pairs)
+      let pings = Map.lookup deviceID (Map.fromList pairs)
 
-      json $ takeRangeSlice (parseTime' from) (parseTime' to) devicePings
+      json $ takeRangeSlice (parseTime' from) (parseTime' to) pings
 
-    S.get "/random_prefix" $ do
-      -- (date :: TL.Text) <- param "date"
+    S.get "/random_prefix/:date" $ do
+      (date :: TL.Text) <- param "date"
+
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-      json $ Map.fromList pairs
+
+      let pairs' = [ (device, takeDaySlice (parseISO8601 date) (Just pings)) 
+                   | (device, pings) <- pairs
+                   , takeDaySlice (parseISO8601 date) (Just pings) /= []
+                   ]
+
+      json $ Map.fromList pairs 
 
     -- S.get "/all/:from/:to" $ do
     --   from <- param "from"
