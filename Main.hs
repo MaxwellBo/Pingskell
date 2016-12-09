@@ -74,14 +74,15 @@ getDevicePings deviceID = R.lrange (textToByteString deviceID) 0 (-1)
 {-- BUSINESS LOGIC --}
 
 takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
-takeDaySlice (Just epochTime) pings = Prelude.filter predicate pings
+takeDaySlice from = takeRangeSlice from to
   where
-    predicate = (inRange (epochTime, epochTime + 86400))
+    to = (+86400) <$> from -- a day later
 
-takeDaySlice _ _ = []
-
--- takeRangeSlice :: TL.Text -> TL.Text -> [EpochTime] -> [EpochTime]
--- takeRangeSlice from to pings =  
+takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
+takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
+  where
+    predicate = inRange (from, to) 
+takeRangeSlice _ _ _ = []
 
 main :: IO ()
 main = do 
@@ -105,14 +106,14 @@ main = do
 
       json $ (takeDaySlice (parseISO8601 date) (parseDevicePings devicePings))
 
-    -- S.get "/:deviceID/:from/:to" $ do
-    --   deviceID <- param "deviceID"
-    --   from <- param "from"
-    --   to <- param "to"
+    S.get "/:deviceID/:from/:to" $ do
+      deviceID <- param "deviceID"
+      from <- param "from"
+      to <- param "to"
 
-    --   (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
+      (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
 
-    --   json $ (takeRangeSlice from to) $ (parseDevicePings devicePings)
+      json $ takeRangeSlice (parseTime' from) (parseTime' to) (parseDevicePings devicePings)
 
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
