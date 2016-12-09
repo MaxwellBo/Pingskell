@@ -99,7 +99,7 @@ main = do
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
       let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
-      json $ (takeDaySlice (parseTime' date) devicePings')
+      json $ (takeDaySlice (parseISO8601 date) devicePings')
 
     -- S.get "/:deviceID/:from/:to" $ do
     --   deviceID <- param "deviceID"
