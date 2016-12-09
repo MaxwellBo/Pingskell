@@ -113,6 +113,11 @@ main = do
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
       let pings = Map.lookup deviceID (Map.fromList pairs)
 
+      liftIO $ print deviceID
+      liftIO $ print date
+      liftIO $ print pings
+      liftIO $ print (parseISO8601 date) 
+
       json $ takeDaySlice (parseISO8601 date) pings
 
     S.get "/:deviceID/:from/:to" $ do
@@ -144,6 +149,11 @@ main = do
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       json $ devices
+
+    S.get "/debug" $ do
+      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+
+      json $ Map.fromList pairs
 
     S.post "/clear_data" $ do
       liftIO $ runRedis conn R.flushall
