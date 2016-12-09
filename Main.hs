@@ -71,12 +71,10 @@ postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
 getDevices :: Redis (Either Reply ([ByteString]))
-getDevices = do
-  R.keys "*"
+getDevices = R.keys "*"
 
 getDevicePings :: TL.Text -> Redis (Either Reply [ByteString])
-getDevicePings deviceID = do
-  R.lrange (textToByteString deviceID) 0 (-1)
+getDevicePings deviceID = R.lrange (textToByteString deviceID) 0 (-1)
 
 main :: IO ()
 main = do 
