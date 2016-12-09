@@ -4,38 +4,40 @@
 import Web.Scotty as S 
 import Database.Redis as R
 
-import Control.Monad.Trans
-import Control.Applicative
-import Data.Function ((&))
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString.Lazy as BL
 
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 
-import qualified Data.ByteString.Lazy as BL
+import Control.Monad.Trans
+import Control.Applicative
 
-import Data.ByteString.Char8 as BE
+import Data.Function ((&))
+import Data.Ix
+import Data.Either
 
 import Data.Time.Format
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
 
 import Text.Read
-import Data.Ix
-import Data.Either
 
 import qualified Data.Map.Lazy as Map
+
+{-- DEFINITIONS --}
 
 type EpochTime = Integer
 
 {-- UTILS --}
 
-byteStringToText :: ByteString -> TL.Text
+byteStringToText :: BC.ByteString -> TL.Text
 byteStringToText = TLE.decodeUtf8 . BL.fromStrict
 
-textToByteString :: TL.Text -> ByteString
-textToByteString = BL.toStrict . TLE.encodeUtf8
+textToByteString :: TL.Text -> BC.ByteString
+textToByteString = BL.toStrict . TL.Encoding.encodeUtf8
 
-byteStringToString :: ByteString -> String
+byteStringToString :: BC.ByteString -> String
 byteStringToString = TL.unpack . byteStringToText
 
 parseISO8601 :: TL.Text -> Maybe EpochTime
@@ -55,7 +57,7 @@ parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
 {-- DB --}
 
-session :: Redis (Either Reply (Maybe ByteString))
+session :: Redis (Either Reply (Maybe BC.ByteString))
 session = do
   R.set "hello" "haskell"
   R.get "hello"
@@ -67,7 +69,7 @@ postPing deviceID epochTime = do
 getDevices :: Redis (Either Reply ([TL.Text]))
 getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
 
-getValue :: ByteString -> Redis (Either Reply [ByteString])
+getValue :: BC.ByteString -> Redis (Either Reply [BC.ByteString])
 getValue key = R.lrange key 0 (-1)
 
 getKeyValuePairs :: Redis (Either Reply [(TL.Text, [EpochTime])])
