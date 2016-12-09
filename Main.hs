@@ -24,6 +24,11 @@ import Data.Time.Clock.POSIX
 import Text.Read
 import Data.Ix
 
+
+-- TODO: Rename Integer to EpochTime
+
+-- TODO: Abstract out get device pings to its own function
+
 {-- UTILS --}
 
 byteStringToText :: ByteString -> TL.Text
@@ -41,14 +46,20 @@ parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
 parseEpochTime :: TL.Text -> Maybe Integer
 parseEpochTime string = readMaybe . TL.unpack $ string
 
-filterTimeRange :: (Maybe POSIXTime) -> [Integer] -> [Integer]
-filterTimeRange (Just posixTime) pings = pings
+-- TODO: Make this function not take a Maybe
+takeDaySlice :: (Maybe POSIXTime) -> [Integer] -> [Integer]
+takeDaySlice (Just posixTime) pings = pings
                                           & Prelude.filter predicate
   where
     posixTime' = (truncate . toRational $ posixTime) :: Integer
     predicate = (inRange (posixTime', posixTime' + 86400))
 
-filterTimeRange _ _ = []
+takeDaySlice _ _ = []
+
+-- takeRangeSlice :: TL.Text -> TL.Text -> [Integer] -> [Integer]
+-- takeRangeSlice from to pings =  
+
+
 
 {-- DB --}
 
@@ -90,7 +101,17 @@ main = do
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
       let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
-      json $ (filterTimeRange $ (parseISO8601 date)) $ devicePings'
+      json $ (takeDaySlice $ (parseISO8601 date)) $ devicePings'
+
+    -- S.get "/:deviceID/:from/:to" $ do
+    --   deviceID <- param "deviceID"
+    --   from <- param "from"
+    --   to <- param "to"
+
+    --   (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
+    --   let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
+
+    --   json $ (takeRangeSlice from to) $ devicePings'
 
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
