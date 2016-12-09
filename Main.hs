@@ -24,10 +24,7 @@ import Data.Time.Clock.POSIX
 import Text.Read
 import Data.Ix
 
-
 type EpochTime = Integer
-
--- TODO: Abstract out get device pings to its own function
 
 {-- UTILS --}
 
@@ -37,24 +34,24 @@ byteStringToText = TLE.decodeUtf8 . BL.fromStrict
 textToByteString :: TL.Text -> ByteString
 textToByteString = BL.toStrict . TLE.encodeUtf8
 
-parseISO8601 :: TL.Text -> Maybe POSIXTime
-parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
+parseISO8601 :: TL.Text -> Maybe EpochTime
+parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
   where
     utcTime = parseTimeM False defaultTimeLocale formatString (TL.unpack string)
     formatString = (iso8601DateFormat Nothing)
+    posixToEpoch = truncate . toRational
 
 parseEpochTime :: TL.Text -> Maybe EpochTime
 parseEpochTime string = readMaybe . TL.unpack $ string
 
-posixToEpoch ::  POSIXTime -> EpochTime
-posixToEpoch = truncate . toRational
+parseTime' :: TL.Text -> Maybe EpochTime
+-- Pass the TL.Text argument to both functions, and take the first Just argument
+-- if possible
+parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
--- TODO: Make this function not take a Maybe
-takeDaySlice :: (Maybe POSIXTime) -> [EpochTime] -> [EpochTime]
-takeDaySlice (Just posixTime) pings = pings
-                                          & Prelude.filter predicate
+takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
+takeDaySlice (Just epochTime) pings = Prelude.filter predicate pings
   where
-    epochTime = posixToEpoch $ posixTime
     predicate = (inRange (epochTime, epochTime + 86400))
 
 takeDaySlice _ _ = []
@@ -102,7 +99,7 @@ main = do
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
       let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
-      json $ (takeDaySlice $ (parseISO8601 date)) $ devicePings'
+      json $ (takeDaySlice (parseTime' date) devicePings')
 
     -- S.get "/:deviceID/:from/:to" $ do
     --   deviceID <- param "deviceID"
