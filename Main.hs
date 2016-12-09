@@ -51,10 +51,6 @@ parseTime' :: TL.Text -> Maybe EpochTime
 -- if possible
 parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
-parseDevicePings :: [TL.Text] -> [EpochTime]
-parseDevicePings = fmap (read . TL.unpack)
-
-
 {-- DB --}
 
 session :: Redis (Either Reply (Maybe ByteString))
@@ -69,10 +65,12 @@ postPing deviceID epochTime = do
 getDevices :: Redis (Either Reply ([TL.Text]))
 getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
 
-getDevicePings :: TL.Text -> Redis (Either Reply [TL.Text])
+getDevicePings :: TL.Text -> Redis (Either Reply [EpochTime])
 getDevicePings deviceID = do 
   pings <- R.lrange (textToByteString deviceID) 0 (-1)
-  return $ fmap (fmap byteStringToText) pings
+  return $ fmap (fmap (read . TL.unpack . byteStringToText)) pings
+
+-- getDevicePingPairs :: Redis (Either Reply [(TL.Text, [Inte])])
 
 
 {-- BUSINESS LOGIC --}
@@ -108,7 +106,7 @@ main = do
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
 
-      json $ (takeDaySlice (parseISO8601 date) (parseDevicePings devicePings))
+      json $ (takeDaySlice (parseISO8601 date) devicePings)
 
     S.get "/:deviceID/:from/:to" $ do
       deviceID <- param "deviceID"
@@ -117,7 +115,7 @@ main = do
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
 
-      json $ takeRangeSlice (parseTime' from) (parseTime' to) (parseDevicePings devicePings)
+      json $ takeRangeSlice (parseTime' from) (parseTime' to) devicePings
 
     -- S.get "/all/:date" $ do
     --   date <- param "date"
