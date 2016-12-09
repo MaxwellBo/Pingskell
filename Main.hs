@@ -119,4 +119,9 @@ main = do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       json $ (fmap byteStringToText devices)
 
+    S.post "/clear_data" $ do
+      liftIO $ runRedis conn R.flushall
+
+      text $ ""
+
 
