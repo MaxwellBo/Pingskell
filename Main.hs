@@ -25,7 +25,7 @@ import Text.Read
 import Data.Ix
 
 
--- TODO: Rename Integer to EpochTime
+type EpochTime = Integer
 
 -- TODO: Abstract out get device pings to its own function
 
@@ -43,23 +43,24 @@ parseISO8601 string = utcTimeToPOSIXSeconds <$> utcTime
     utcTime = parseTimeM False defaultTimeLocale formatString (TL.unpack string)
     formatString = (iso8601DateFormat Nothing)
 
-parseEpochTime :: TL.Text -> Maybe Integer
+parseEpochTime :: TL.Text -> Maybe EpochTime
 parseEpochTime string = readMaybe . TL.unpack $ string
 
+posixToEpoch ::  POSIXTime -> EpochTime
+posixToEpoch = truncate . toRational
+
 -- TODO: Make this function not take a Maybe
-takeDaySlice :: (Maybe POSIXTime) -> [Integer] -> [Integer]
+takeDaySlice :: (Maybe POSIXTime) -> [EpochTime] -> [EpochTime]
 takeDaySlice (Just posixTime) pings = pings
                                           & Prelude.filter predicate
   where
-    posixTime' = (truncate . toRational $ posixTime) :: Integer
-    predicate = (inRange (posixTime', posixTime' + 86400))
+    epochTime = posixToEpoch $ posixTime
+    predicate = (inRange (epochTime, epochTime + 86400))
 
 takeDaySlice _ _ = []
 
--- takeRangeSlice :: TL.Text -> TL.Text -> [Integer] -> [Integer]
+-- takeRangeSlice :: TL.Text -> TL.Text -> [EpochTime] -> [EpochTime]
 -- takeRangeSlice from to pings =  
-
-
 
 {-- DB --}
 
@@ -68,7 +69,7 @@ session = do
   R.set "hello" "haskell"
   R.get "hello"
 
-postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
+postPing :: TL.Text -> TL.Text -> Redis (Either Reply EpochTime)
 postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
@@ -99,7 +100,7 @@ main = do
       date <- param "date"
 
       (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-      let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
+      let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
       json $ (takeDaySlice $ (parseISO8601 date)) $ devicePings'
 
@@ -109,7 +110,7 @@ main = do
     --   to <- param "to"
 
     --   (Right devicePings) <- liftIO $ (runRedis conn (getDevicePings deviceID))
-    --   let (devicePings' :: [Integer]) = (read . TL.unpack . byteStringToText) <$> devicePings
+    --   let (devicePings' :: [EpochTime]) = (read . TL.unpack . byteStringToText) <$> devicePings
 
     --   json $ (takeRangeSlice from to) $ devicePings'
 
