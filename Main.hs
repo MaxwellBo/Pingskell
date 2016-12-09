@@ -8,11 +8,9 @@ import Control.Monad.Trans
 import Control.Applicative
 import Data.Function ((&))
 
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
 import Data.ByteString.Char8 as BE
