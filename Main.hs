@@ -4,11 +4,7 @@
 import Web.Scotty as S 
 import Database.Redis as R
 
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.ByteString.Lazy as BL
-
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TLE
 
 import Control.Monad.Trans
 import Control.Applicative
