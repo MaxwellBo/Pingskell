@@ -137,20 +137,20 @@ main = do
       deviceID <- param "deviceID"
       date <- param "date"
 
-      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-      let pings = Map.lookup deviceID (Map.fromList pairs)
+      let sliceFunc = (takeDaySlice (parseISO8601 date))
+      map <- liftIO $ getMap conn sliceFunc
 
-      json $ takeDaySlice (parseISO8601 date) pings
+      json $ (Map.findWithDefault [] deviceID map)
 
     S.get "/:deviceID/:from/:to" $ do
       deviceID <- param "deviceID"
       from <- param "from"
       to <- param "to"
 
-      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-      let pings = Map.lookup deviceID (Map.fromList pairs)
+      let sliceFunc = takeRangeSlice (parseTime' from) (parseTime' to)
+      map <- liftIO $ getMap conn sliceFunc
 
-      json $ takeRangeSlice (parseTime' from) (parseTime' to) pings
+      json $ (Map.findWithDefault [] deviceID map)
 
 
     S.get "/devices" $ do
