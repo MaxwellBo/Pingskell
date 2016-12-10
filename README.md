@@ -2,20 +2,26 @@
 
 My solution to [TandaHQ/work-samples/pings](https://github.com/TandaHQ/work-samples/tree/master/pings%20(backend)). 
 
+## Requirements
 
-### Requirements
+- [Stack](https://docs.haskellstack.org/en/stable/README/) (`curl -sSL https://get.haskellstack.org/ | sh`)
+- [Docker](https://www.docker.com/products/overview) (`brew cask install docker` or `sudo apt-get install docker-engine`)
 
-Running from binary (`make binary`)
+## Usage
 
-- Docker
-- GNU Make
+#### Booting the DB
 
-`cabal sandbox init`
-`cabal install`
-`cabal run`
+1. `docker pull redis`
+2. `docker run --name PingskellDB -d -p 6379:6379 redis --appendonly yes`
 
+#### Booting the server
 
+1. `stack build && stack exec Pingskell`
 
-`docker run --name PingskellDB -d redis redis-server --appendonly yes -p 6379:6379`
+#### Running the tests
 
-`docker run -d -p 6379:6379 redis`
+1. `ruby pings.rb`
+
+#### Tearing down the DB
+
+1. `docker kill PingskellDB`
