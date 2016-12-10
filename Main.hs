@@ -80,7 +80,6 @@ getMap conn sliceFunc = do
 
   let pairs' = [ (device, sliceFunc pings) 
                | (device, pings) <- pairs
-               -- TODO: Remove the Just from here
                , sliceFunc pings /= []
                ]
 
