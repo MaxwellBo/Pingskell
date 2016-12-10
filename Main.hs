@@ -137,6 +137,7 @@ main = do
 
       text $ ""
 
+
     S.get "/all/:date" $ do
       date <- param "date"
 
@@ -144,6 +145,7 @@ main = do
       map <- liftIO $ getMap conn sliceFunc
 
       json $ map
+
 
     S.get "/all/:from/:to" $ do
       from <- param "from"
@@ -179,6 +181,7 @@ main = do
     S.get "/devices" $ do
       let getDevices = (fmap . fmap . fmap) byteString2Text (R.keys "*")
       (Right devices) <- liftIO $ (runRedis conn getDevices)
+      
       json $ devices
 
 
