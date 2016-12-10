@@ -53,8 +53,7 @@ parseEpochTime :: TL.Text -> Maybe EpochTime
 parseEpochTime = readMaybe . TL.unpack
 
 parseTime' :: TL.Text -> Maybe EpochTime
--- Pass the TL.Text argument to both functions, and take the first Just argument
--- if possible
+-- Pass the TL.Text argument to both functions, and return the first Just
 parseTime' = (<|>) <$> parseISO8601 <*> parseEpochTime
 
 {-- DB --}
@@ -63,18 +62,22 @@ postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
-getValue :: BC.ByteString -> Redis (Either Reply [BC.ByteString])
-getValue key = R.lrange key 0 (-1)
-
 getKeyValuePairs :: Redis (Either Reply [(TL.Text, [EpochTime])])
 getKeyValuePairs = do
   (Right keys) <- (R.keys "*")
-  values <- (mapM getValue keys)
+
+  let getValue = \key -> R.lrange key 0 (-1) -- ran in the Redis context
+
+  values <- rights <$> (mapM getValue keys)
+
   let devices = fmap byteStringToText keys
-  let pings = (fmap (read . byteStringToString)) <$> rights values
+  let pings = (fmap (read . byteStringToString)) <$> values
+
   return $ return $ Prelude.zip devices pings
 
-getMap :: Connection -> ([EpochTime] -> [EpochTime]) -> IO (Map.Map TL.Text [EpochTime])
+getMap :: Connection 
+       -> ([EpochTime] -> [EpochTime]) 
+       -> IO (Map.Map TL.Text [EpochTime])
 getMap conn sliceFunc = do 
   (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
@@ -163,5 +166,3 @@ main = do
       liftIO $ runRedis conn R.flushall
 
       text $ ""
-
-
