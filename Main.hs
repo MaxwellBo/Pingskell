@@ -74,27 +74,27 @@ getKeyValuePairs = do
   let pings = (fmap (read . byteStringToString)) <$> rights values
   return $ return $ Prelude.zip devices pings
 
-getMap :: Connection -> (Maybe [EpochTime] -> [EpochTime]) -> IO (Map.Map TL.Text [EpochTime])
+getMap :: Connection -> ([EpochTime] -> [EpochTime]) -> IO (Map.Map TL.Text [EpochTime])
 getMap conn sliceFunc = do 
   (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
-  let pairs' = [ (device, sliceFunc (Just pings)) 
+  let pairs' = [ (device, sliceFunc pings) 
                | (device, pings) <- pairs
                -- TODO: Remove the Just from here
-               , sliceFunc (Just pings) /= []
+               , sliceFunc pings /= []
                ]
 
   return $ Map.fromList pairs'
 
 {-- BUSINESS LOGIC --}
 
-takeDaySlice :: Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
+takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
 takeDaySlice from = takeRangeSlice from to
   where
     to = (+86400) <$> from -- a day later
 
-takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
-takeRangeSlice (Just from) (Just to) (Just pings) = Prelude.filter predicate pings
+takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
+takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
   where
     predicate = inRange (from, to - 1) 
 takeRangeSlice _ _ _ = []
@@ -142,6 +142,7 @@ main = do
 
       json $ (Map.findWithDefault [] deviceID map)
 
+
     S.get "/:deviceID/:from/:to" $ do
       deviceID <- param "deviceID"
       from <- param "from"
@@ -157,6 +158,7 @@ main = do
       let getDevices = (fmap . fmap . fmap) byteStringToText (R.keys "*")
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       json $ devices
+
 
     S.post "/clear_data" $ do
       liftIO $ runRedis conn R.flushall
