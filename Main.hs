@@ -118,31 +118,19 @@ main = do
     S.get "/all/:date" $ do
       date <- param "date"
 
-      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+      let sliceFunc = (takeDaySlice (parseISO8601 date))
+      map <- liftIO $ getMap conn sliceFunc
 
-      let subset = takeDaySlice (parseISO8601 date) 
-
-      let pairs' = [ (device, subset (Just pings)) 
-                   | (device, pings) <- pairs
-                   , subset (Just pings) /= []
-                   ]
-
-      json $ Map.fromList pairs'
+      json $ map
 
     S.get "/all/:from/:to" $ do
       from <- param "from"
       to <- param "to"
 
-      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+      let sliceFunc = takeRangeSlice (parseTime' from) (parseTime' to)
+      map <- liftIO $ getMap conn sliceFunc
 
-      let subset = takeRangeSlice (parseTime' from) (parseTime' to)
-
-      let pairs' = [ (device, subset (Just pings)) 
-                   | (device, pings) <- pairs
-                   , subset (Just pings) /= []
-                   ]
-
-      json $ Map.fromList pairs'
+      json $ map
 
 
     S.get "/:deviceID/:date" $ do
