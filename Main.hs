@@ -63,9 +63,6 @@ postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
   R.rpush (textToByteString deviceID) [(textToByteString epochTime)]
 
-getDevices :: Redis (Either Reply ([TL.Text]))
-getDevices = fmap (fmap (fmap byteStringToText)) (R.keys "*")
-
 getValue :: BC.ByteString -> Redis (Either Reply [BC.ByteString])
 getValue key = R.lrange key 0 (-1)
 
@@ -157,6 +154,7 @@ main = do
 
 
     S.get "/devices" $ do
+      let getDevices = (fmap . fmap . fmap) byteStringToText (R.keys "*")
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       json $ devices
 
