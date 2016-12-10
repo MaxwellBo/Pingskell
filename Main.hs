@@ -106,25 +106,42 @@ main = do
 
       text $ ""
 
-    S.get "/random_prefix/:date" $ do
+    S.get "/all/:date" $ do
       date <- param "date"
 
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
+      let subset = takeDaySlice (parseISO8601 date) 
 
-      let pairs' = [ (device, takeDaySlice (parseISO8601 date) (Just pings)) 
+      let pairs' = [ (device, subset (Just pings)) 
                    | (device, pings) <- pairs
-                   , takeDaySlice (parseISO8601 date) (Just pings) /= []
+                   , subset (Just pings) /= []
                    ]
 
-      json $ Map.fromList pairs 
+      json $ Map.fromList pairs'
+
+    S.get "/all/:from/:to" $ do
+      from <- param "from"
+      to <- param "to"
+
+      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+
+      let subset = takeRangeSlice (parseTime' from) (parseTime' to)
+
+      let pairs' = [ (device, subset (Just pings)) 
+                   | (device, pings) <- pairs
+                   , subset (Just pings) /= []
+                   ]
+
+      json $ Map.fromList pairs'
+
+
     S.get "/:deviceID/:date" $ do
       deviceID <- param "deviceID"
       date <- param "date"
 
       (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
       let pings = Map.lookup deviceID (Map.fromList pairs)
-
 
       json $ takeDaySlice (parseISO8601 date) pings
 
@@ -139,18 +156,9 @@ main = do
       json $ takeRangeSlice (parseTime' from) (parseTime' to) pings
 
 
-    -- S.get "/all/:from/:to" $ do
-    --   from <- param "from"
-    --   to <- param "to"
-
     S.get "/devices" $ do
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       json $ devices
-
-    S.get "/debug" $ do
-      (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
-
-      json $ Map.fromList pairs
 
     S.post "/clear_data" $ do
       liftIO $ runRedis conn R.flushall
