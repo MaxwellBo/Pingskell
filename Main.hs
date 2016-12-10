@@ -74,6 +74,18 @@ getKeyValuePairs = do
   let pings = (fmap (read . byteStringToString)) <$> rights values
   return $ return $ Prelude.zip devices pings
 
+getMap :: Connection -> (Maybe [EpochTime] -> [EpochTime]) -> IO (Map.Map TL.Text [EpochTime])
+getMap conn sliceFunc = do 
+  (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
+
+  let pairs' = [ (device, sliceFunc (Just pings)) 
+               | (device, pings) <- pairs
+               -- TODO: Remove the Just from here
+               , sliceFunc (Just pings) /= []
+               ]
+
+  return $ Map.fromList pairs'
+
 {-- BUSINESS LOGIC --}
 
 takeDaySlice :: Maybe EpochTime -> Maybe [EpochTime] -> [EpochTime]
