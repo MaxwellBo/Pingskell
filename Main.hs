@@ -22,23 +22,13 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
 
 import Text.Read
+import Data.String.Conversions (cs)
 
 import qualified Data.Map.Lazy as Map
 
 {-- DEFINITIONS --}
 
 type EpochTime = Integer
-
-{-- CONVERSIONS --}
-
-byteString2Text :: BC.ByteString -> TL.Text
-byteString2Text = TLE.decodeUtf8 . BL.fromStrict
-
-text2ByteString :: TL.Text -> BC.ByteString
-text2ByteString = BL.toStrict . TLE.encodeUtf8
-
-byteString2String :: BC.ByteString -> String
-byteString2String = TL.unpack . byteString2Text
 
 {-- TIME --}
 
@@ -69,7 +59,7 @@ parseTimeStamp = (<|>) <$> parseISO8601 <*> parseEpochTime
 -- If [the] key does not exist, [an] empty list [is created] before appending."
 postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
-  R.rpush (text2ByteString deviceID) [(text2ByteString epochTime)]
+  R.rpush (cs deviceID) [(cs epochTime)]
 
 -- A computation that retrives all key-value pairs from a database,
 -- and converts their types as neccessary
@@ -81,8 +71,8 @@ getKeyValuePairs = do
 
   values <- rights <$> (mapM getValue keys)
 
-  let devices = fmap byteString2Text keys
-  let pings = (fmap (read . byteString2String)) <$> values
+  let devices = fmap cs keys
+  let pings = (fmap (read . cs)) <$> values
 
   return $ return $ Prelude.zip devices pings
 
@@ -179,10 +169,10 @@ main = do
 
 
     S.get "/devices" $ do
-      let getDevices = (fmap . fmap . fmap) byteString2Text (R.keys "*")
+      let getDevices = (fmap . fmap . fmap) cs (R.keys "*")
       (Right devices) <- liftIO $ (runRedis conn getDevices)
       
-      json $ devices
+      json $ (devices :: [TL.Text])
 
 
     S.post "/clear_data" $ do
