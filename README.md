@@ -21,7 +21,9 @@ OR
 
 #### Booting the server
 
-1. `stack build && stack exec Pingskell`
+1. `cd Pingskell`
+2. `stack setup`
+3. `stack build && stack exec Pingskell`
 
 #### Running the tests
 
