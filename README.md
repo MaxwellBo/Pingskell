@@ -6,8 +6,7 @@ My solution to [TandaHQ/work-samples/pings](https://github.com/TandaHQ/work-samp
 
 - [Stack](https://docs.haskellstack.org/en/stable/README/) (`curl -sSL https://get.haskellstack.org/ | sh`)
 
-- [Docker](https://www.docker.com/products/overview) (`brew cask install docker` or `sudo apt-get install docker-engine`)
-- OR [Redis](https://redis.io/) (`brew install redis` or `sudo apt-get install redis-server`)
+- [Docker](https://www.docker.com/products/overview) (`brew cask install docker` or `sudo apt-get install docker-engine`) OR [Redis](https://redis.io/) (`brew install redis` or `sudo apt-get install redis-server`)
 
 ## Usage
 
