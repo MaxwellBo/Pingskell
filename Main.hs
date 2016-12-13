@@ -83,7 +83,7 @@ getMap conn sliceFunc = do
 
   let pairs' = [ (device, sliceFunc pings) 
                | (device, pings) <- pairs
-               , sliceFunc pings /= []
+               , sliceFunc pings /= [] -- don't present keys with no values
                ]
 
   return $ Map.fromList pairs'
