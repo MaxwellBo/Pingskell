@@ -20,6 +20,7 @@ import Data.Time.Clock.POSIX
 import Text.Read
 import Data.String.Conversions (cs)
 
+import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
 {-- DEFINITIONS --}
@@ -77,7 +78,7 @@ getKeyValuePairs = do
 -- | pings from the database.
 getMap :: Connection
        -> ([EpochTime] -> [EpochTime])
-       -> IO (Map.Map TL.Text [EpochTime])
+       -> IO (Map TL.Text [EpochTime])
 getMap conn sliceFunc = do
   (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
