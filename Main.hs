@@ -1,7 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-} 
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Web.Scotty as S 
+import Web.Scotty as S
 import Database.Redis as R
 
 import qualified Data.Text.Lazy as TL
@@ -50,8 +50,8 @@ parseTimeStamp = (<|>) <$> parseISO8601 <*> parseEpochTime
 
 {-- DB --}
 
--- | Given a device ID, and a ping, produces a computation that 
--- | "adds the value at the tail of the list stored at [the] key. 
+-- | Given a device ID, and a ping, produces a computation that
+-- | "adds the value at the tail of the list stored at [the] key.
 -- | If [the] key does not exist, [an] empty list [is created] before appending."
 postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
@@ -67,7 +67,7 @@ getKeyValuePairs = do
 
   values <- rights <$> (mapM getValue keys)
 
-  let devices = fmap cs keys
+  let devices = cs <$> keys
   let pings = (fmap (read . cs)) <$> values
 
   return $ return $ Prelude.zip devices pings
@@ -75,13 +75,13 @@ getKeyValuePairs = do
 -- | Given a connection, and a strategy that filters a list of pings into a
 -- | bounded time window, retrieves a mapping of devices and their respective
 -- | pings from the database.
-getMap :: Connection 
-       -> ([EpochTime] -> [EpochTime]) 
+getMap :: Connection
+       -> ([EpochTime] -> [EpochTime])
        -> IO (Map.Map TL.Text [EpochTime])
-getMap conn sliceFunc = do 
+getMap conn sliceFunc = do
   (Right pairs) <- liftIO $ (runRedis conn getKeyValuePairs)
 
-  let pairs' = [ (device, sliceFunc pings) 
+  let pairs' = [ (device, sliceFunc pings)
                | (device, pings) <- pairs
                , sliceFunc pings /= [] -- don't present keys with no values
                ]
@@ -103,14 +103,14 @@ takeDaySlice from = takeRangeSlice from to
 takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
 takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
   where
-    predicate = inRange (from, to - 1) 
+    predicate = inRange (from, to - 1)
 takeRangeSlice _ _ _ = []
 
 {-- ENTRY POINT --}
 
 -- Author: Max Bo (max@maxbo.me)
 main :: IO ()
-main = do 
+main = do
   conn <- connect defaultConnectInfo
 
   scotty 3000 $ do
@@ -165,9 +165,9 @@ main = do
 
 
     S.get "/devices" $ do
-      let getDevices = (fmap . fmap . fmap) cs (R.keys "*")
+      let getDevices = (fmap.fmap.fmap) cs (R.keys "*")
       (Right devices) <- liftIO $ (runRedis conn getDevices)
-      
+
       json $ (devices :: [TL.Text])
 
 
