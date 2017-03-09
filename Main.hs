@@ -30,7 +30,7 @@ type EpochTime = Integer
 {-- TIME --}
 
 -- | Given a string possibly containing a ISO8601 date ("2016-12-10"), attempts
--- | to convert that date to an Integer Unix timestamp.
+-- to convert that date to an Integer Unix timestamp.
 parseISO8601 :: TL.Text -> Maybe EpochTime
 parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
   where
@@ -39,12 +39,12 @@ parseISO8601 string = (posixToEpoch . utcTimeToPOSIXSeconds) <$> utcTime
     posixToEpoch = truncate . toRational
 
 -- | Given a string possibly containing a Unix timestamp ("1481287522"), attempts
--- | to convert that date to an Integer Unix timestamp.
+-- to convert that date to an Integer Unix timestamp.
 parseEpochTime :: TL.Text -> Maybe EpochTime
 parseEpochTime = readMaybe . TL.unpack
 
 -- | Given a string containing either a ISO8601 date or a Unix timestamp,
--- | attempts to convert the string to to an Integer Unix timestamp.
+-- attempts to convert the string to to an Integer Unix timestamp.
 parseTimeStamp :: TL.Text -> Maybe EpochTime
 -- Pass the TL.Text argument to both functions, and return the first Just
 parseTimeStamp = (<|>) <$> parseISO8601 <*> parseEpochTime
@@ -52,14 +52,14 @@ parseTimeStamp = (<|>) <$> parseISO8601 <*> parseEpochTime
 {-- DB --}
 
 -- | Given a device ID, and a ping, produces a computation that
--- | "adds the value at the tail of the list stored at [the] key.
--- | If [the] key does not exist, [an] empty list [is created] before appending."
+-- "adds the value at the tail of the list stored at [the] key.
+-- If [the] key does not exist, [an] empty list [is created] before appending."
 postPing :: TL.Text -> TL.Text -> Redis (Either Reply Integer)
 postPing deviceID epochTime = do
   R.rpush (cs deviceID) [(cs epochTime)]
 
 -- | A computation that retrives all key-value pairs from a database,
--- | and converts their types as neccessary
+-- and converts their types as neccessary
 getKeyValuePairs :: Redis (Either Reply [(TL.Text, [EpochTime])])
 getKeyValuePairs = do
   (Right keys) <- (R.keys "*")
@@ -74,8 +74,8 @@ getKeyValuePairs = do
   return $ return $ Prelude.zip devices pings
 
 -- | Given a connection, and a strategy that filters a list of pings into a
--- | bounded time window, retrieves a mapping of devices and their respective
--- | pings from the database.
+-- bounded time window, retrieves a mapping of devices and their respective
+-- pings from the database.
 getMap :: Connection
        -> ([EpochTime] -> [EpochTime])
        -> IO (Map TL.Text [EpochTime])
@@ -92,15 +92,15 @@ getMap conn sliceFunc = do
 {-- BUSINESS LOGIC --}
 
 -- | Given a possible start Unix timestamp, filters the list of pings so that
--- | only pings up to a day later remain.
+-- only pings up to a day later remain.
 takeDaySlice :: Maybe EpochTime -> [EpochTime] -> [EpochTime]
 takeDaySlice from = takeRangeSlice from to
   where
     to = (+86400) <$> from -- a day later
 
 -- | Given a possible start and end Unix timestamp, filters the list of pings so
--- | that only pings, including the start timestamp, up until, but not including,
--- | the end timestamp remain.
+-- that only pings, including the start timestamp, up until, but not including,
+-- the end timestamp remain.
 takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
 takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
   where
