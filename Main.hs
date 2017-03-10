@@ -102,7 +102,7 @@ takeDaySlice from = takeRangeSlice from to
 -- that only pings, including the start timestamp, up until, but not including,
 -- the end timestamp remain.
 takeRangeSlice :: Maybe EpochTime -> Maybe EpochTime -> [EpochTime] -> [EpochTime]
-takeRangeSlice (Just from) (Just to) pings = Prelude.filter predicate pings
+takeRangeSlice (Just from) (Just to) = Prelude.filter predicate
   where
     predicate = inRange (from, to - 1)
 takeRangeSlice _ _ _ = []
